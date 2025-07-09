@@ -20,12 +20,22 @@
 
 ## Installation
 
+To install from github:
+
+```bash
+python3 -m venv ~/.localpy && \
+  source ~/.localpy/bin/activate && \
+  pip3 install git+https://github.com/fuzzy/geris
+```
+
 To install locally:
 
 ```bash
 git clone https://github.com/yourname/geris.git
 cd geris
-pip install -e .
+python3 -m venv ~/.localpy && \
+  source ~/.localpy/bin/activate && \
+  pip3 install -e .
 ```
 
 This will install the geris CLI command.
