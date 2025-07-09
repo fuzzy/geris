@@ -405,9 +405,9 @@ class AiChatApp(App):
     Markdown             { background: #282a36; color: #f8f8f2; text-align: center; }
     Markdown:focus       { background: #282a36; color: #f8f8f2; text-align: center; }
     Markdown:blur        { background: #282a36; color: #f8f8f2; text-align: center; }
-    RichLog                  { background: #1a1a1a; color: #f8f8f2; height: 2fr; }
-    RichLog:focus            { background: #1a1a1a; color: #f8f8f2; height: 2fr; }
-    RichLog:blur             { background: #1a1a1a; color: #f8f8f2; height: 2fr; }
+    RichLog              { background: #1a1a1a; color: #f8f8f2; height: 2fr; }
+    RichLog:focus        { background: #1a1a1a; color: #f8f8f2; height: 2fr; }
+    RichLog:blur         { background: #1a1a1a; color: #f8f8f2; height: 2fr; }
     Input                { background: #282a36; color: #f8f8f2; }
     Input:focus          { background: #282a36; color: #f8f8f2; }
     Input:blur           { background: #282a36; color: #f8f8f2; }
