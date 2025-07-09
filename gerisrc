@@ -1,0 +1,13 @@
+[gitea:default]
+uri = https://gitea.example.com
+token = <TOKEN>
+
+[openai:default]
+uri = https://api.openai.com
+token = <TOKEN>
+model = gpt-3.5-turbo
+
+[openai:deepseek]
+uri = https://api.deepseek.com
+token = <TOKEN>
+model = deepseek-reasoner
