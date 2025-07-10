@@ -43,6 +43,7 @@ class AiChatApp(App):
         self._tools = GiteaTools(host, token)
         self._llm_model = model
         self._debugFlag = debug
+        self._reqCount = 0
 
     def compose(self) -> ComposeResult:
         self._mdown = Static()
@@ -68,7 +69,7 @@ class AiChatApp(App):
                 "role": "system",
                 "content": os.getenv(
                     "OPENAI_DEFAULT_PROMPT",
-                    "You are a helpful assistant, who manages tasks on project repositories. Respond in markdown formatted text.",
+                    "You are a helpful assistant, who manages tasks on project repositories. You are hyper-aware of categorization, and prefer to use labels anytime they are available. If not asked to put a description in place on a resource, use your besst judgement. Respond in markdown formatted text, and prefer verbose tables with row number when listing similar content. For any issues you create, apply the labels 'Agent' and 'Review', creating them on the repo before-hand if they do not exist. When creating new issues, unless otherwise explicitly stated, assign to the default user. You have a tool to retrieve the default user",
                 ),
             },
         ]
@@ -83,30 +84,38 @@ class AiChatApp(App):
                 self.query_one(RichLog).write(Panel(Pretty(msg)))
             else:
                 self.query_one(RichLog).write(msg)
-            with open("debug._process_chat.dbg", "a+") as fp:
+            with open("_process_chat.debug", "a+") as fp:
                 fp.write(str(msg) + "\n")
 
     def _process_chat(self) -> None:
+        self._reqCount += 1
         try:
-            if not self._chat_flag:
-                response = openai.ChatCompletion.create(
-                    model=self._llm_model,
-                    messages=self._messages,
-                    tools=self._tools.tools(),
-                    tool_choice="auto",
-                )
-                self._chat_flag = True
-            else:
-                response = openai.ChatCompletion.create(
-                    model=self._llm_model,
-                    messages=self._messages,
-                    tools=self._tools.tools(),
-                    tool_choice="auto",
-                )
+            # Always make the API call with current messages
+            response = openai.ChatCompletion.create(
+                model=self._llm_model,
+                messages=self._messages,
+                tools=self._tools.tools(),
+                tool_choice="auto",
+            )
+
+            # Debug output
+            with open(f"choices-{self._reqCount:05d}.debug", "w+") as fp:
+                fp.write(json.dumps(response["choices"], indent=2))
 
             message = response["choices"][0]["message"]
 
             if "tool_calls" in message:
+                # Add the assistant's tool-call message to history ONCE
+                if not any(
+                    msg.get("tool_calls") == message["tool_calls"]
+                    for msg in self._messages
+                ):
+                    self._messages.append(
+                        {k: v for k, v in message.items() if k != "reasoning_content"}
+                    )
+
+                # Process ALL tool calls first
+                tool_responses = []
                 for call in message["tool_calls"]:
                     fn = call["function"]["name"]
                     args = call["function"]["arguments"]
@@ -121,36 +130,62 @@ class AiChatApp(App):
                     except Exception as e:
                         result = {"error": f"Tool {fn} raised an error: {str(e)}"}
                         self._debug(result, True)
-                        break
 
-                    self._messages.append(
-                        {k: v for k, v in message.items() if k != "reasoning_content"}
-                    )
-                    self._messages.append(
+                    tool_responses.append(
                         {
                             "role": "tool",
                             "tool_call_id": call["id"],
                             "content": json.dumps(result, default=str),
                         }
                     )
-                    self._process_chat()
+
+                # Add ALL tool responses at once
+                self._messages.extend(tool_responses)
+
+                # Debug and recurse
+                if self._debugFlag:
+                    with open(f"req-{self._reqCount:05d}.json", "w+") as fp:
+                        fp.write(json.dumps(self._messages, indent=2))
+
+                self._process_chat()
             else:
+                # Final response handling
+                if self._debugFlag:
+                    with open(f"req-{self._reqCount:05d}.json", "w+") as fp:
+                        fp.write(json.dumps(self._messages, indent=2))
+
                 self._mdown.update(
                     Markdown(
                         f"""## Prompt
+    **Input**: `{self._prompt}`
 
-**Input**: `{self._prompt}`
-
-## Response
-                
-{message["content"]}"""
+    ## Response
+    {message["content"]}"""
                     )
                 )
         except Exception as e:
-            self._mdown.update(
-                Markdown(f"- ERROR: Failed to get assistant response: {str(e)}")
-            )
-            with open("debug._process_chat.err", "a+") as fp:
+            data = [
+                "# `ERROR`: **Failed to get assistant response**",
+                f"`- Message`: **{str(e)}**",
+                f"`- Request Debug File`: **req-{self._reqCount:05d}.json**",
+                f"`- Choices Debug File`: **choices-{self._reqCount:05d}.json**",
+                "# Message Stack",
+            ]
+            for n in self._messages:
+                data.append("---")
+                data.append(f"- `Role`: **{n.get('role', None)}**")
+                data.append(f"  - `Content`: {n.get('content', '')}")
+                if n.get("tool_call_id", False):
+                    data.append(f"  - `ToolCall-ID`: **{n.get('tool_call_id')}**")
+                for d in n.get("tool_calls", []):
+                    data.append(
+                        f"  - `Index`: **{d.get('index', None)}** -- `ID`: **{d.get('id', None)}**"
+                    )
+                    data.append(f"    - `Type`: **{d.get('type', None)}**")
+                    data.append(f"    - `Function`: **{d.get('function', None)}**")
+            # [data.append("- " + str(n)) for n in self._messages]
+            self._mdown.update(Markdown("\n".join(data)))
+            with open("error._process_chat.debug", "a+") as fp:
                 for msg in self._messages:
                     fp.write(f"{json.dumps(msg, indent=2)}\n")
                     fp.write(("-" * 80) + "\n" + str(e) + "\n")
