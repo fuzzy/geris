@@ -3,6 +3,8 @@
 
 **Geris** is a terminal-based application for managing Gitea repositories using the Gitea API and OpenAI's function-calling capabilities. It provides a conversational interface via a Textual UI, enabling users to query and manipulate repository issues, labels, milestones, and user data.
 
+[![asciicast](https://asciinema.org/a/fPIIqQeAOqT0Rz2gOUMHupZMP.svg)](https://asciinema.org/a/fPIIqQeAOqT0Rz2gOUMHupZMP)
+
 ## Features
 
 - Conversational UI for managing Gitea repositories
