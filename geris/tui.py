@@ -99,8 +99,9 @@ class AiChatApp(App):
             )
 
             # Debug output
-            with open(f"choices-{self._reqCount:05d}.debug", "w+") as fp:
-                fp.write(json.dumps(response["choices"], indent=2))
+            if self._debugFlag:
+                with open(f"choices-{self._reqCount:05d}.debug", "w+") as fp:
+                    fp.write(json.dumps(response["choices"], indent=2))
 
             message = response["choices"][0]["message"]
 
@@ -156,19 +157,22 @@ class AiChatApp(App):
 
                 self._mdown.update(
                     Markdown(
-                        f"""## Prompt
-    **Input**: `{self._prompt}`
-
-    ## Response
-    {message["content"]}"""
+                        "\n".join(
+                            (
+                                "# Prompt",
+                                f"- `Input`: **{self._prompt}**",
+                                "# Response",
+                                message["content"],
+                            )
+                        )
                     )
                 )
         except Exception as e:
             data = [
                 "# `ERROR`: **Failed to get assistant response**",
-                f"`- Message`: **{str(e)}**",
-                f"`- Request Debug File`: **req-{self._reqCount:05d}.json**",
-                f"`- Choices Debug File`: **choices-{self._reqCount:05d}.json**",
+                f"- `Message`: **{str(e)}**",
+                f"- `Request Debug File`: **req-{self._reqCount:05d}.json**",
+                f"- `Choices Debug File`: **choices-{self._reqCount:05d}.json**",
                 "# Message Stack",
             ]
             for n in self._messages:
