@@ -1,5 +1,4 @@
 # Stdlib
-import json
 from typing import List
 
 # 3rd party
@@ -30,12 +29,14 @@ class GiteaTools:
             self.default_user,
             self.list_users,
             self.list_orgs,
+            # repos
+            self.list_repos,
             # labels
             self.list_labels,
             self.get_label,
             self.get_labels,
-            self.add_label,
-            self.remove_label,
+            self.add_labels,
+            self.remove_labels,
             self.create_label,
             self.delete_label,
             # milestones
@@ -73,13 +74,21 @@ class GiteaTools:
         """description:Return a list of all orgs"""
         return [itm.to_dict() for itm in self._admin.admin_get_all_orgs()]
 
+    def list_repos(self, owner: str) -> List[dict]:
+        """description:List repos for an owner
+        owner:Owner of the repositories to list
+        required:owner"""
+        return [itm.to_dict() for itm in self._user.user_list_repos(owner)]
+
     def list_labels(self, owner: str, repo: str) -> List[str]:
         """description:list issue labels for a repository
         owner:Owner of the repository
         repo:Name of the repository
         required:owner,repo"""
-        data = self._issue.issue_list_labels(owner=owner, repo=repo)
-        return [json.dumps(itm.to_dict(), default=str) for itm in data]
+        return [
+            itm.to_dict()
+            for itm in self._issue.issue_list_labels(owner=owner, repo=repo)
+        ]
 
     def get_label(self, owner: str, repo: str, id: int) -> dict:
         """description:Get a single label from a repository
@@ -100,7 +109,7 @@ class GiteaTools:
             for itm in self._issue.issue_get_labels(owner=owner, repo=repo, index=index)
         ]
 
-    def add_label(
+    def add_labels(
         self, owner: str, repo: str, index: int, labels: List[int]
     ) -> List[dict]:
         """description:Add one or more labels to an issue
@@ -117,12 +126,14 @@ class GiteaTools:
             )
         ]
 
-    def remove_label(self, owner: str, repo: str, index: int, id: int) -> dict:
-        """description:Remove a label from an issue
+    def remove_labels(
+        self, owner: str, repo: str, index: int, labels: List[int]
+    ) -> dict:
+        """description:Remove one or more labels from an issue
         owner:Owner of the repository
         repo:Name of the repository
         index:Index of the issue to add label(s) to
-        id:ID of the label to remove from the issue
+        labels:List of label IDs to remove from the issue
         required:owner,repo,index,label"""
         self._issue.issue_remove_label(owner=owner, repo=repo, index=index, id=id)
         return {"result": "success"}
@@ -148,13 +159,14 @@ class GiteaTools:
             owner=owner, repo=repo, body=body
         ).to_dict()
 
-    def delete_label(self, owner: str, repo: str, id: int) -> None:
+    def delete_label(self, owner: str, repo: str, id: int) -> dict:
         """description:Delete a label from a repository
         owner:Owner of the repository
         repo:Name of the repository
         id:ID of the label to delete
         required:owner,repo,id"""
-        return self._issue.issue_delete_label(owner=owner, repo=repo, id=id)
+        self._issue.issue_delete_label(owner=owner, repo=repo, id=id)
+        return {"result": "success"}
 
     def list_milestones(self, owner: str, repo: str, state: str = "open") -> List[str]:
         """description:List milestones for a repository
@@ -163,7 +175,7 @@ class GiteaTools:
         state:State of the milestones; enum:open,closed,all; default:open
         required:owner,repo"""
         return [
-            json.dumps(itm.to_dict())
+            itm.to_dict()
             for itm in self._issue.issue_get_milestones_list(
                 owner=owner, repo=repo, state=state
             )
@@ -232,10 +244,7 @@ class GiteaTools:
             }.items()
             if v is not None
         }
-        return [
-            json.loads(json.dumps(issue.to_dict(), default=str))
-            for issue in self._issue.issue_list_issues(**kwargs)
-        ]
+        return [issue.to_dict() for issue in self._issue.issue_list_issues(**kwargs)]
 
     def get_issue(self, owner: str, repo: str, index: int) -> dict:
         """description:Get a single issue from a repository
@@ -313,3 +322,6 @@ class GiteaTools:
         return self._issue.issue_create_issue(
             owner=owner, repo=repo, body=body
         ).to_dict()
+
+
+# create a new high priority issue for a bug on thwap-iac/test-repo titled 'socket interface causing segfault'
