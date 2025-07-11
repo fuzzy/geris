@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 # stdlib
-import os
-import sys
 import argparse
 import configparser
+import os
+import sys
 
 # 3rd party
 import openai

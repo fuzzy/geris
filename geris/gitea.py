@@ -47,6 +47,7 @@ class GiteaTools:
             # issues
             self.list_issues,
             self.get_issue,
+            self.edit_isssue,
             self.close_issue,
             self.close_issues,
             self.create_issue,
@@ -255,6 +256,44 @@ class GiteaTools:
         return self._issue.issue_get_issue(
             owner=owner, repo=repo, index=index
         ).to_dict()
+
+    def edit_issue(
+        self,
+        owner: str,
+        repo: str,
+        index: int,
+        assignee: str,
+        assignees: List[str],
+        body: str,
+        due_date: str,
+        milestone: int,
+        state: str,
+        title: str,
+    ) -> dict:
+        """description:Modify an existing issue
+        owner:Owner of the repository
+        repo:Name of the repository
+        index:Index of the issue to close
+        assignee:User to assign to the isssue
+        assignees:List of users to assign to the issue
+        body:The description of the issue
+        due_date:A time/date the issue is due on
+        milestone:ID of the milestone to attach the issue to
+        state:State of the ticket; enum:open,closed;
+        title:The title or headline of the issue
+        required:owner,repo,index"""
+        body = giteapy.EditIssueOption(
+            **{
+                "assignee": assignee,
+                "assignees": assignees,
+                "body": body,
+                "due_date": due_date,
+                "milestone": milestone,
+                "state": state,
+                "title": title,
+            }
+        )
+        return self._issue.issue_edit_issue(owner, repo, index, body).to_dict()
 
     def close_issue(self, owner: str, repo: str, index: int) -> dict:
         """description:Close a given issue

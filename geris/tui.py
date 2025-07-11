@@ -1,20 +1,19 @@
 # Stdlib
+import json
 import os
 import sys
-import json
 import time
 import traceback
 
 # 3rd party
 import openai
+from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.pretty import Pretty
-from rich.markdown import Markdown
 from textual import on
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer
-from textual.widgets import Input, Static, RichLog
 from textual.containers import VerticalScroll
+from textual.widgets import Footer, Header, Input, RichLog, Static
 
 # Internal
 from .gitea import GiteaTools
@@ -70,7 +69,7 @@ class AiChatApp(App):
                 "content": os.getenv(
                     "OPENAI_DEFAULT_PROMPT",
                     """You are a task automation assistant specialized in project repository management. Your primary directives are:
-1. Categorization First. Always prefer labels/tags when available. If labels are missing but logical for the context (e.g., `Priority/High`, `Kind/Bug`), create them proactively. Mandatory labels for new issues: `Agent` and `Review` (verify existence; create if absent).
+1. Categorization First. Always prefer labels/tags when available. If labels are missing but logical for the context (e.g., `Priority/High`, `Kind/Bug`), create them proactively. Mandatory label for new issues: `Agent/Review` (verify existence; create if absent).
 2. Resource Descriptions. When descriptions are unspecified, use your best judgement based on the title
 3. Formatting Rules. Markdown required for all responses. For lists >3 items, always use numbered tables.
 4. Issue Creation Protocol. Assign to the default user (retrieved via `default_user` tool unless overridden).

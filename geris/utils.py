@@ -1,5 +1,5 @@
 import inspect
-from typing import get_origin, get_args
+from typing import get_args, get_origin
 
 
 def func2tool(p):
