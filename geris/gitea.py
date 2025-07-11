@@ -47,7 +47,7 @@ class GiteaTools:
             # issues
             self.list_issues,
             self.get_issue,
-            self.edit_isssue,
+            self.edit_issue,
             self.close_issue,
             self.close_issues,
             self.create_issue,
