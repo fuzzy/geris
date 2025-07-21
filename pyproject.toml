@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "geris"
-version = "0.1.3"
+version = "0.2.0"
 description = "Terminal-based Gitea issue management with OpenAI tool calling integration"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -22,10 +22,11 @@ classifiers = [
 ]
 
 dependencies = [
-  "openai",
+  "openai<=0.99.0",
   "giteapy",
   "textual",
-  "rich"
+  "rich",
+  "textual-timepiece"
 ]
 
 [project.scripts]

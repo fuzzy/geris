@@ -1,5 +1,11 @@
+import json
 import inspect
 from typing import get_args, get_origin
+
+
+def tool(fn):
+    fn._is_tool = True
+    return fn
 
 
 def func2tool(p):

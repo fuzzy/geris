@@ -1,11 +1,13 @@
 # Stdlib
+import sys
+import json
 from typing import List
 
 # 3rd party
 import giteapy
 
 # internal
-from .utils import func2tool
+from .utils import tool, func2tool
 
 
 class GiteaTools:
@@ -17,44 +19,19 @@ class GiteaTools:
         _config.api_key["access_token"] = token
         _client = giteapy.ApiClient(_config)
 
+        self._tools = []
         self._funcMap = []
-
         self._issue = giteapy.IssueApi(_client)
         self._admin = giteapy.AdminApi(_client)
         self._user = giteapy.UserApi(_client)
         self._repo = giteapy.RepositoryApi(_client)
 
-        self._tools = (
-            # user and org
-            self.default_user,
-            self.list_users,
-            self.list_orgs,
-            # repos
-            self.list_repos,
-            # labels
-            self.list_labels,
-            self.get_label,
-            self.get_labels,
-            self.add_labels,
-            self.remove_labels,
-            self.create_label,
-            self.delete_label,
-            # milestones
-            self.list_milestones,
-            self.get_milestone,
-            self.create_milestone,
-            self.delete_milestone,
-            # issues
-            self.list_issues,
-            self.get_issue,
-            self.edit_issue,
-            self.close_issue,
-            self.close_issues,
-            self.create_issue,
-            # comments
-            # self.list_comments, # TODO
-            # self.create_comment, # TODO
-        )
+        self._tool_scan()
+
+    def _tool_scan(self):
+        for k in dir(self):
+            if getattr(getattr(self, k), "_is_tool", False):
+                self._tools.append(getattr(self, k))
 
         for n in self._tools:
             self._funcMap.append(func2tool(n))
@@ -62,25 +39,90 @@ class GiteaTools:
     def tools(self) -> List[dict]:
         return self._funcMap
 
+    @tool
     def default_user(self) -> dict:
-        """description:Return the current user"""
-        retv = self._user.user_get_current()
-        return retv.to_dict()
+        """description:Return the current user, their associated repositories and open tickets"""
+        retv = self._user.user_get_current().to_dict()
+        retv.update(
+            {
+                "repositories": [
+                    n.to_dict() for n in self._user.user_current_list_subscriptions()
+                ],
+                "prs": [],
+                "issues": [],
+                "milestones": [],
+            }
+        )
+        for r in retv.get("repositories", []):
+            try:
+                [
+                    retv["issues"].append(n.to_dict())
+                    for n in self._issue.issue_list_issues(
+                        owner=r.get("owner", {}).get("login", None),
+                        repo=r.get("name", None),
+                        state="open",
+                    )
+                ]
+                [
+                    retv["milestones"].append(n.to_dict())
+                    for n in self._issue.issue_get_milestones_list(
+                        owner=r.get("owner", {}).get("login", None),
+                        repo=r.get("name", None),
+                        state="open",
+                    )
+                ]
+                [
+                    retv["prs"].append(n.to_dict())
+                    for n in self._repo.repo_list_pull_requests(
+                        owner=r.get("owner", {}).get("login", None),
+                        repo=r.get("name", None),
+                        state="open",
+                    )
+                ]
+            except Exception as e:
+                with open("default_user.debug", "w+") as fp:
+                    fp.write(str(e) + "\n")
+                    fp.write("-" * 80 + "\n")
+                    fp.write(str(r) + "\n")
+        return retv
 
+    def get_heatmap_data(self, owner: str) -> List[dict]:
+        return [n.to_dict() for n in self._user.user_get_heatmap_data(username=owner)]
+
+    @tool
+    def list_default_user_repos(self) -> List[dict]:
+        """description:Return a list of all repos owned by or associated with the default user"""
+        return [n.to_dict() for n in self._user.user_current_list_subscriptions()]
+
+    @tool
+    def list_default_user_issues(self) -> List[dict]:
+        """description:Return a list of all issues assigned to the default user"""
+        with open("debug.out", "w+") as fp:
+            fp.write("DEBUG")
+            fp.write(json.dumps(self.default_user(), indent=2) + "\n")
+            for repo in self._user.user_current_list_subscriptions():
+                fp.write(("-" * 80) + "\n")
+                fp.write(json.dumps(self._issue_issue_list_issues(), indent=2) + "\n")
+        return []
+
+    @tool
     def list_users(self) -> List[str]:
         """description:Return a list of all users"""
         return [itm.to_dict() for itm in self._admin.admin_get_all_users()]
 
+    @tool
     def list_orgs(self) -> List[str]:
         """description:Return a list of all orgs"""
         return [itm.to_dict() for itm in self._admin.admin_get_all_orgs()]
 
+    @tool
     def list_repos(self, owner: str) -> List[dict]:
         """description:List repos for an owner
         owner:Owner of the repositories to list
         required:owner"""
         return [itm.to_dict() for itm in self._user.user_list_repos(owner)]
 
+    @tool
     def list_labels(self, owner: str, repo: str) -> List[str]:
         """description:list issue labels for a repository
         owner:Owner of the repository
@@ -91,6 +133,7 @@ class GiteaTools:
             for itm in self._issue.issue_list_labels(owner=owner, repo=repo)
         ]
 
+    @tool
     def get_label(self, owner: str, repo: str, id: int) -> dict:
         """description:Get a single label from a repository
         owner:Owner of the repository
@@ -99,6 +142,7 @@ class GiteaTools:
         required:owner,repo,id"""
         return self._issue.issue_get_label(owner=owner, repo=repo, id=id).to_dict()
 
+    @tool
     def get_labels(self, owner: str, repo: str, index: int) -> List[dict]:
         """description:Get all labels on an issue
         owner:Owner of the repository
@@ -110,6 +154,7 @@ class GiteaTools:
             for itm in self._issue.issue_get_labels(owner=owner, repo=repo, index=index)
         ]
 
+    @tool
     def add_labels(
         self, owner: str, repo: str, index: int, labels: List[int]
     ) -> List[dict]:
@@ -127,6 +172,7 @@ class GiteaTools:
             )
         ]
 
+    @tool
     def remove_labels(
         self, owner: str, repo: str, index: int, labels: List[int]
     ) -> dict:
@@ -139,6 +185,7 @@ class GiteaTools:
         self._issue.issue_remove_label(owner=owner, repo=repo, index=index, id=id)
         return {"result": "success"}
 
+    @tool
     def create_label(
         self,
         owner: str,
@@ -160,6 +207,7 @@ class GiteaTools:
             owner=owner, repo=repo, body=body
         ).to_dict()
 
+    @tool
     def delete_label(self, owner: str, repo: str, id: int) -> dict:
         """description:Delete a label from a repository
         owner:Owner of the repository
@@ -169,6 +217,7 @@ class GiteaTools:
         self._issue.issue_delete_label(owner=owner, repo=repo, id=id)
         return {"result": "success"}
 
+    @tool
     def list_milestones(self, owner: str, repo: str, state: str = "open") -> List[str]:
         """description:List milestones for a repository
         owner:Owner of the repository
@@ -182,6 +231,7 @@ class GiteaTools:
             )
         ]
 
+    @tool
     def get_milestone(self, owner: str, repo: str, id: int) -> dict:
         """description:Get a single milestone from a repository
         owner:Owner of the repository
@@ -190,6 +240,7 @@ class GiteaTools:
         required:owner,repo,id"""
         return self._issue.issue_get_milestone(owner=owner, repo=repo, id=id).to_dict()
 
+    @tool
     def create_milestone(
         self, owner: str, repo: str, descr: str, due_on: str, title: str
     ) -> dict:
@@ -207,6 +258,7 @@ class GiteaTools:
             owner=owner, repo=repo, body=body
         ).to_dict()
 
+    @tool
     def delete_milestone(self, owner: str, repo: str, id: int) -> dict:
         """description:Delete a milestone from a repository
         owner:Owner of the repository
@@ -216,6 +268,7 @@ class GiteaTools:
         self._issue.issue_delete_milestone(owner=owner, repo=repo, id=id)
         return {"result": "success"}
 
+    @tool
     def list_issues(
         self,
         owner: str,
@@ -247,6 +300,7 @@ class GiteaTools:
         }
         return [issue.to_dict() for issue in self._issue.issue_list_issues(**kwargs)]
 
+    @tool
     def get_issue(self, owner: str, repo: str, index: int) -> dict:
         """description:Get a single issue from a repository
         owner:Owner of the repository
@@ -257,6 +311,7 @@ class GiteaTools:
             owner=owner, repo=repo, index=index
         ).to_dict()
 
+    @tool
     def edit_issue(
         self,
         owner: str,
@@ -295,6 +350,7 @@ class GiteaTools:
         )
         return self._issue.issue_edit_issue(owner, repo, index, body).to_dict()
 
+    @tool
     def close_issue(self, owner: str, repo: str, index: int) -> dict:
         """description:Close a given issue
         owner:Owner of the repository
@@ -306,6 +362,7 @@ class GiteaTools:
             owner=owner, repo=repo, index=index, body=body
         ).to_dict()
 
+    @tool
     def close_issues(self, owner: str, repo: str, indexes: List[int]) -> List[dict]:
         """description:Close multiple issues
         owner:Owner of the repository
@@ -317,6 +374,7 @@ class GiteaTools:
             retv.append(self.close_issue(owner, repo, n))
         return retv
 
+    @tool
     def create_issue(
         self,
         owner: str,

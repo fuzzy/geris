@@ -10,7 +10,7 @@ import sys
 import openai
 
 # Internal
-from .tui import AiChatApp
+from .tui import Geris
 
 config = configparser.ConfigParser()
 debugFlag = False
@@ -68,7 +68,7 @@ def main():
     openai.api_base = openaiConfig.get("uri", "UNSET")
     openai.api_key = openaiConfig.get("token", "UNSET")
 
-    app = AiChatApp()
+    app = Geris()
     app.setup_app(
         config[f"gitea:{args.gitea_profile}"].get("uri", "UNSET"),
         config[f"gitea:{args.gitea_profile}"].get("token", "UNSET"),
