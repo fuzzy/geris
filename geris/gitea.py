@@ -42,6 +42,11 @@ class GiteaTools:
     @tool
     def default_user(self) -> dict:
         """description:Return the current user, their associated repositories and open tickets"""
+        return self._user.user_get_current().to_dict().get("login", None)
+
+    @tool
+    def dashboard(self) -> dict:
+        """description:Return a dashboard with the current user, their repositories and open issues, mildestones and pull requests"""
         retv = self._user.user_get_current().to_dict()
         retv.update(
             {
