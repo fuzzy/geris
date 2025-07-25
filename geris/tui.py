@@ -3,10 +3,7 @@ import json
 import os
 import sys
 import time
-import random
 import traceback
-from collections import defaultdict
-from datetime import datetime, timezone
 
 # 3rd party
 import openai
@@ -16,8 +13,8 @@ from rich.pretty import Pretty
 from textual import on
 from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll, Horizontal, Vertical
-from textual.widgets import Footer, Header, Input, RichLog, Static
-from textual_timepiece.activity_heatmap import ActivityHeatmap, HeatmapManager
+from textual.widgets import Footer, Header, Input
+from textual.widgets import Sparkline, Static, RichLog
 
 # Internal
 from .gitea import GiteaTools
@@ -46,14 +43,9 @@ class Geris(App):
     }
     Vertical { width: auto; height: auto; background: $surface; }
     Horizontal { width: 1fr; height: auto; background: $surface; }
-    ActivityHeatmap {
-      width: 100%; content-align: center middle; background: $surface;
-      .activity-heatmap--color { text-style: bold; }
-    }
-    HeatmapManager {
-      width: 100%; height: auto; padding-bottom: 1; content-align: center middle;
-      background: $surface;
-    }
+    Sparkline { width: 1fr; background: $surface; }
+    #spark > .sparkline--max-color { color: $accent; }
+    #spark > .sparkline--min-color { color: $accent 30%; }
     """
 
     def setup_app(self, host, token, model, debug=False) -> None:
@@ -87,7 +79,9 @@ class Geris(App):
                 yield Static(
                     "[cyan]Open PRs[/cyan]: 0", classes="status", id="status-prs"
                 )
-            yield HeatmapManager(2025)
+            yield Sparkline(
+                [], summary_function=max, id="status-sparkline", classes="spark"
+            )
         yield self._input
         yield Footer()
 
@@ -95,37 +89,24 @@ class Geris(App):
         issues_w = self.query_one("#status-issues", Static)
         milestones_w = self.query_one("#status-milestones", Static)
         prs_w = self.query_one("#status-prs", Static)
-        data = self._tools.default_user()
+        data = self._tools.dashboard()
         issues_w.update(f"[green]Open Issues[/green]: {len(data['issues'])}")
         milestones_w.update(
             f"[yellow]Open Milestones[/yellow]: {len(data['milestones'])}"
         )
         prs_w.update(f"[cyan]Open PRs[/cyan]: {len(data['prs'])}")
 
-    def _on_heatmap_manager_year_changed(
-        self,
-        message: HeatmapManager.YearChanged,
-    ) -> None:
-        message.stop()
-        self.set_heatmap_data(message.year)
-
     def set_heatmap_data(self, year: int) -> None:
         """Sets the data based on the current data."""
-        self.query_one(ActivityHeatmap).values = self.retrieve_data(year)
+        datums = [
+            n["contributions"]
+            for n in self._tools.get_heatmap_data(self._tools.default_user())
+        ]
 
-    def retrieve_data(self, year: int) -> ActivityHeatmap.ActivityData:
-        result = defaultdict(lambda: 0)
-        for entry in self._tools.get_heatmap_data("fuzzy"):
-            dt = datetime.fromtimestamp(entry["timestamp"], tz=timezone.utc)
-            if dt.year == year:
-                result[dt.date()] += entry["contributions"]
+        for _ in range(365 - len(datums)):
+            datums.insert(0, 0)
 
-        with open("retrieve_data.debug", "w+") as fp:
-            fp.write(str(result))
-        with open("heatmap_data.json", "w+") as fp:
-            fp.write(str(self._tools.get_heatmap_data("fuzzy")))
-
-        return result
+        self.query_one(Sparkline).data = datums
 
     def on_mount(self) -> None:
         self.title = "Geris - Gitea Issue Management....hopefully"

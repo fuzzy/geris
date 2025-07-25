@@ -26,7 +26,6 @@ dependencies = [
   "giteapy",
   "textual",
   "rich",
-  "textual-timepiece"
 ]
 
 [project.scripts]
